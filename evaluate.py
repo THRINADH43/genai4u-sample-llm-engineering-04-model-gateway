@@ -1,6 +1,6 @@
 """Scores the configured model on data/eval.jsonl and compares with the last run.
 
-GATEWAY_PROVIDER=groq GATEWAY_MODEL=openai/gpt-oss-20b python evaluate.py
+MODEL_PROVIDER=groq MODEL_NAME=openai/gpt-oss-20b python evaluate.py
 python evaluate.py --fail-under 0.8     # exit 1 if accuracy is below 0.8 (for CI)
 
 A case passes when every expected word appears in the answer (case-insensitive).
@@ -17,9 +17,9 @@ from gateway.core import Budget, Gateway
 from gateway.providers import provider_from_config
 
 
-def load_cases(path="data/eval.jsonl"):
+def load_cases(path="data/eval.json"):
     with open(path, encoding="utf-8") as f:
-        return [json.loads(line) for line in f if line.strip()]
+        return json.load(f)
 
 
 def passes(answer, expected):
@@ -30,7 +30,7 @@ def run(gw, cases):
     rows, cost = [], 0.0
     t0 = time.time()
     for case in cases:
-        c, case_cost = gw.complete("evaluation", case["prompt"])
+        c, case_cost = gw.complete("evaluation", [{"role": "user", "content": case["prompt"]}])
         cost += case_cost
         rows.append({"id": case["id"], "ok": passes(c.text, case["expected"]), "answer": c.text[:200]})
     return {"accuracy": round(sum(r["ok"] for r in rows) / len(rows), 3), "cases": len(rows),

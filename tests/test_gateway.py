@@ -15,50 +15,64 @@ def no_sleep(_):
     pass
 
 
+def msg(text):
+    return [{"role": "user", "content": text}]
+
+
 class ConfigTests(unittest.TestCase):
     def test_provider_changes_with_configuration_only(self):
         self.assertIsInstance(provider_from_config({}), FakeProvider)
-        p = provider_from_config({"GATEWAY_PROVIDER": "groq", "GATEWAY_MODEL": "m", "GROQ_API_KEY": "x"})
+        p = provider_from_config({"MODEL_PROVIDER": "groq", "MODEL_NAME": "m", "GROQ_API_KEY": "x"})
         self.assertIsInstance(p, OpenAICompatibleProvider)
         self.assertEqual((p.name, p.model), ("groq", "m"))
 
     def test_missing_key_and_unknown_provider(self):
         with self.assertRaises(ValueError):
-            provider_from_config({"GATEWAY_PROVIDER": "groq"})
+            provider_from_config({"MODEL_PROVIDER": "groq"})
         with self.assertRaises(ValueError):
-            provider_from_config({"GATEWAY_PROVIDER": "nope"})
+            provider_from_config({"MODEL_PROVIDER": "nope"})
 
 
 class ReliabilityTests(unittest.TestCase):
     def test_retries_then_succeeds(self):
         fake = FakeProvider(fail_times=2)
-        c, _ = Gateway(fake, Budget(1), retries=2, sleep=no_sleep).complete("a", "hi")
+        c, _ = Gateway(fake, Budget(1), retries=2, sleep=no_sleep).complete("a", msg("hi"))
         self.assertEqual(c.text, "echo: hi")
         self.assertEqual(fake.calls, 3)
+
+    def test_bad_key_is_not_retried(self):
+        class BadKey(FakeProvider):
+            def complete(self, messages, timeout):
+                self.calls += 1
+                raise ProviderError("HTTP 401", retryable=False)
+        fake = BadKey()
+        with self.assertRaises(ProviderError):
+            Gateway(fake, Budget(1), retries=2, sleep=no_sleep).complete("a", msg("hi"))
+        self.assertEqual(fake.calls, 1)
 
     def test_gives_up_after_retries(self):
         fake = FakeProvider(fail_times=5)
         with self.assertRaises(ProviderError):
-            Gateway(fake, Budget(1), retries=2, sleep=no_sleep).complete("a", "hi")
+            Gateway(fake, Budget(1), retries=2, sleep=no_sleep).complete("a", msg("hi"))
         self.assertEqual(fake.calls, 3)
 
     def test_timeout_is_a_retryable_failure(self):
         fake = FakeProvider(delay=0.2)
         with self.assertRaises(ProviderError):
-            Gateway(fake, Budget(1), retries=0, timeout=0.05).complete("a", "hi")
+            Gateway(fake, Budget(1), retries=0, timeout=0.05).complete("a", msg("hi"))
 
     def test_budget_per_caller(self):
         fake = FakeProvider(model="openai/gpt-oss-20b")
         budget = Budget(0.000001)
         gw = Gateway(fake, budget, sleep=no_sleep)
-        gw.complete("alice", "word " * 50)
+        gw.complete("alice", msg("word " * 50))
         with self.assertRaises(BudgetExceeded):
-            gw.complete("alice", "again")
-        gw.complete("bob", "bob still has budget")
+            gw.complete("alice", msg("again"))
+        gw.complete("bob", msg("bob still has budget"))
 
     def test_stream_yields_pieces(self):
         gw = Gateway(FakeProvider(answers={"hi": "hello there friend"}), Budget(1))
-        self.assertEqual("".join(gw.stream("a", "hi")).strip(), "hello there friend")
+        self.assertEqual("".join(gw.stream("a", msg("hi"))).strip(), "hello there friend")
 
 
 class LoggingTests(unittest.TestCase):
@@ -70,7 +84,7 @@ class LoggingTests(unittest.TestCase):
 
     def test_logs_have_tokens_latency_cost_and_no_personal_data(self):
         with self.assertLogs("gateway", level=logging.INFO) as logs:
-            Gateway(FakeProvider(), Budget(1)).complete("a", "my email is a@b.com")
+            Gateway(FakeProvider(), Budget(1)).complete("a", msg("my email is a@b.com"))
         record = json.loads(logs.records[0].getMessage())
         for key in ("input_tokens", "output_tokens", "latency_ms", "cost_usd"):
             self.assertIn(key, record)
@@ -113,18 +127,36 @@ class ServerTests(unittest.TestCase):
             return err.code, err.read().decode()
 
     def test_complete(self):
-        status, body = self.post("/v1/complete", {"prompt": "hi"})
+        status, body = self.post("/chat", {"messages": msg("hi")})
         self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body)["text"], "hello")
+        self.assertEqual(json.loads(body)["reply"], "hello")
 
     def test_stream(self):
-        status, body = self.post("/v1/stream", {"prompt": "hi"})
+        status, body = self.post("/chat", {"messages": msg("hi"), "stream": True})
         self.assertEqual(status, 200)
         self.assertIn("data: [DONE]", body)
 
     def test_bad_requests(self):
-        self.assertEqual(self.post("/v1/complete", {"prompt": "hi"}, caller=None)[0], 400)
-        self.assertEqual(self.post("/v1/complete", {})[0], 400)
+        self.assertEqual(self.post("/chat", {"messages": msg("hi")}, caller=None)[0], 400)
+        self.assertEqual(self.post("/chat", {})[0], 400)
+        self.assertEqual(self.post("/chat", {"messages": [{"role": "robot", "content": "x"}]})[0], 400)
+
+    def test_spending_limit_answers_429(self):
+        self.gw.budget.spent["rich-app"] = 99.0
+        status, body = self.post("/chat", {"messages": msg("hi")}, caller="rich-app")
+        self.assertEqual(status, 429)
+        self.assertIn("limit", json.loads(body)["error"])
+
+    def test_model_failure_answers_502(self):
+        class Broken(FakeProvider):
+            def complete(self, messages, timeout):
+                raise ProviderError("HTTP 401", retryable=False)
+        old = self.gw.provider
+        self.gw.provider = Broken()
+        try:
+            self.assertEqual(self.post("/chat", {"messages": msg("hi")})[0], 502)
+        finally:
+            self.gw.provider = old
 
 
 if __name__ == "__main__":

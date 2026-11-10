@@ -6,7 +6,7 @@ import re
 import threading
 import time
 
-from gateway.providers import Completion, ProviderError
+from gateway.providers import Completion, ProviderError, last_user_text
 
 log = logging.getLogger("gateway")
 
@@ -60,32 +60,32 @@ class Gateway:
         self.timeout = timeout
         self._sleep = sleep
 
-    def _log(self, caller, prompt, c: Completion | None, cost, started, ok, error=""):
+    def _log(self, caller, messages, c: Completion | None, cost, started, ok, error=""):
         log.info(json.dumps({
             "caller": caller, "provider": self.provider.name, "model": self.provider.model,
             "input_tokens": c.input_tokens if c else 0, "output_tokens": c.output_tokens if c else 0,
             "cost_usd": round(cost, 6), "latency_ms": int((time.monotonic() - started) * 1000),
-            "ok": ok, "error": error, "prompt_preview": redact(prompt[:80]),
+            "ok": ok, "error": error, "prompt_preview": redact(last_user_text(messages))[:80],  # mask first, then cut
         }))
 
-    def complete(self, caller: str, prompt: str) -> tuple[Completion, float]:
+    def complete(self, caller: str, messages: list) -> tuple[Completion, float]:
         self.budget.check(caller)
         started = time.monotonic()
         for attempt in range(self.retries + 1):
             try:
-                c = self.provider.complete(prompt, timeout=self.timeout)
+                c = self.provider.complete(messages, timeout=self.timeout)
                 break
             except ProviderError as err:
-                if attempt == self.retries:
-                    self._log(caller, prompt, None, 0.0, started, False, str(err))
+                if not err.retryable or attempt == self.retries:
+                    self._log(caller, messages, None, 0.0, started, False, str(err))
                     raise
                 self._sleep(0.5 * 2 ** attempt)  # 0.5s, 1s, 2s ...
         cost = cost_of(self.provider.model, c)
         self.budget.add(caller, cost)
-        self._log(caller, prompt, c, cost, started, True)
+        self._log(caller, messages, c, cost, started, True)
         return c, cost
 
-    def stream(self, caller: str, prompt: str):
+    def stream(self, caller: str, messages: list):
         """Yields text pieces. Retries only before the first piece is sent; after that a
         failure is passed on, because the caller has already shown part of the answer."""
         self.budget.check(caller)
@@ -93,16 +93,18 @@ class Gateway:
         pieces = []
         for attempt in range(self.retries + 1):
             try:
-                for piece in self.provider.stream(prompt, timeout=self.timeout):
+                for piece in self.provider.stream(messages, timeout=self.timeout):
                     pieces.append(piece)
                     yield piece
                 break
-            except ProviderError:
-                if pieces or attempt == self.retries:
+            except ProviderError as err:
+                if pieces or not err.retryable or attempt == self.retries:
+                    self._log(caller, messages, None, 0.0, started, False, str(err))
                     raise
                 self._sleep(0.5 * 2 ** attempt)
         text = "".join(pieces)
-        c = Completion(text, len(prompt.split()), len(text.split()))  # estimate: streams give no usage
+        words_in = sum(len(str(m.get("content", "")).split()) for m in messages)
+        c = Completion(text, words_in, len(text.split()))  # estimate: streams give no usage
         cost = cost_of(self.provider.model, c)
         self.budget.add(caller, cost)
-        self._log(caller, prompt, c, cost, started, True)
+        self._log(caller, messages, c, cost, started, True)

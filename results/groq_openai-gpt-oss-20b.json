@@ -1,8 +1,8 @@
 {
- "accuracy": 0.969,
+ "accuracy": 0.938,
  "cases": 32,
- "cost_usd": 0.000434,
- "seconds": 9.2,
+ "cost_usd": 0.000432,
+ "seconds": 6.8,
  "rows": [
   {
    "id": "q01",
@@ -22,12 +22,12 @@
   {
    "id": "q04",
    "ok": false,
-   "answer": "Water is composed of two hydrogen atoms and one oxygen atom, so its chemical formula (and commonly used \u201csymbol\u201d) is **H\u2082O**."
+   "answer": "The chemical symbol for water is **H\u2082O**."
   },
   {
    "id": "q05",
    "ok": true,
-   "answer": "Dhanyavaad."
+   "answer": "**Dhanyavaad**"
   },
   {
    "id": "q06",
@@ -37,12 +37,12 @@
   {
    "id": "q07",
    "ok": true,
-   "answer": "Tagore"
+   "answer": "**Tagore**"
   },
   {
    "id": "q08",
    "ok": true,
-   "answer": "Pacific Ocean"
+   "answer": "Pacific"
   },
   {
    "id": "q09",
@@ -52,7 +52,7 @@
   {
    "id": "q10",
    "ok": true,
-   "answer": "Plants take in **carbon dioxide (CO\u2082)** for photosynthesis."
+   "answer": "Plants take in **carbon dioxide (CO\u2082)** during photosynthesis."
   },
   {
    "id": "q11",
@@ -62,7 +62,7 @@
   {
    "id": "q12",
    "ok": true,
-   "answer": "The keyword is **`def`**. In Python, you define a function with:\n\n```python\ndef function_name(parameters):\n    # function body\n```\n"
+   "answer": "In Python, the keyword that defines a function is:\n\n```python\ndef\n```\n\nIt is used at the beginning of a function definition, e.g.:\n\n```python\ndef my_function():\n    pass\n```"
   },
   {
    "id": "q13",
@@ -76,8 +76,8 @@
   },
   {
    "id": "q15",
-   "ok": true,
-   "answer": "Ganga"
+   "ok": false,
+   "answer": "Ganges"
   },
   {
    "id": "q16",
@@ -92,7 +92,7 @@
   {
    "id": "q18",
    "ok": true,
-   "answer": "Modern"
+   "answer": "modern"
   },
   {
    "id": "q19",
@@ -112,12 +112,12 @@
   {
    "id": "q22",
    "ok": true,
-   "answer": "The plural of **\u201cmouse\u201d** is **\u201cmice.\u201d**"
+   "answer": "The plural of **mouse** is **mice**."
   },
   {
    "id": "q23",
    "ok": true,
-   "answer": "Heart"
+   "answer": "Heart."
   },
   {
    "id": "q24",
@@ -132,7 +132,7 @@
   {
    "id": "q26",
    "ok": true,
-   "answer": "The SQL keyword you use to retrieve (read) rows from a table is **`SELECT`**.  \nExample:\n\n```sql\nSELECT column1, column2\nFROM your_table\nWHERE condition;\n```\n"
+   "answer": "The SQL keyword used to read (or retrieve) rows from a table is:\n\n```sql\nSELECT\n```\n\nThe `SELECT` statement is the core of data retrieval in SQL. It allows you to specify which columns to fetch, apply"
   },
   {
    "id": "q27",
@@ -147,7 +147,7 @@
   {
    "id": "q29",
    "ok": true,
-   "answer": "Green"
+   "answer": "green"
   },
   {
    "id": "q30",
@@ -157,7 +157,7 @@
   {
    "id": "q31",
    "ok": true,
-   "answer": "went"
+   "answer": "Went."
   },
   {
    "id": "q32",

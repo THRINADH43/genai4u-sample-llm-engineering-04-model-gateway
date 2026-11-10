@@ -1,9 +1,10 @@
 """HTTP API.
 
-POST /v1/complete   {"prompt": "..."}  header X-Caller: <name>
-  -> 200 {"text", "input_tokens", "output_tokens", "cost_usd"}
-POST /v1/stream     same body -> text/event-stream, one "data:" line per piece, then "data: [DONE]"
-402 when the caller's budget is used up, 502 when the model keeps failing.
+POST /chat   {"messages": [{"role": "user", "content": "..."}]}   header X-Caller: <name>
+  -> 200 {"reply", "input_tokens", "output_tokens", "cost_usd"}
+POST /chat   {"messages": [...], "stream": true}
+  -> text/event-stream, one "data:" line per piece as it arrives, then "data: [DONE]"
+429 when the caller's spending limit is used up, 502 when the model fails.
 """
 
 import json
@@ -29,35 +30,36 @@ def make_handler(gw: Gateway):
             caller = self.headers.get("X-Caller", "").strip()
             if not caller:
                 return self._json(400, {"error": "X-Caller header is required"})
+            if self.path != "/chat":
+                return self._json(404, {"error": "not found"})
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
-                prompt = body["prompt"]
-                assert isinstance(prompt, str) and prompt.strip()
-            except (ValueError, KeyError, AssertionError):
-                return self._json(400, {"error": "body must be JSON with a non-empty prompt"})
+                messages = body["messages"]
+                assert isinstance(messages, list) and messages
+                assert all(isinstance(m, dict) and m.get("role") in ("system", "user", "assistant")
+                           and isinstance(m.get("content"), str) for m in messages)
+            except (ValueError, KeyError, AssertionError, TypeError):
+                return self._json(400, {"error": "body must be JSON with a non-empty messages list"})
             try:
-                if self.path == "/v1/complete":
-                    c, cost = gw.complete(caller, prompt)
-                    return self._json(200, {"text": c.text, "input_tokens": c.input_tokens,
+                if not body.get("stream"):
+                    c, cost = gw.complete(caller, messages)
+                    return self._json(200, {"reply": c.text, "input_tokens": c.input_tokens,
                                             "output_tokens": c.output_tokens, "cost_usd": cost})
-                if self.path == "/v1/stream":
-                    gw.budget.check(caller)
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/event-stream")
-                    self.end_headers()
-                    try:
-                        for piece in gw.stream(caller, prompt):
-                            self.wfile.write(f"data: {json.dumps(piece)}\n\n".encode())
-                            self.wfile.flush()
-                    except ProviderError:
-                        self.wfile.write(b"data: [ERROR]\n\n")
-                    self.wfile.write(b"data: [DONE]\n\n")
-                    return
-                return self._json(404, {"error": "not found"})
+                gw.budget.check(caller)
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.end_headers()
+                try:
+                    for piece in gw.stream(caller, messages):
+                        self.wfile.write(f"data: {json.dumps(piece)}\n\n".encode())
+                        self.wfile.flush()
+                except ProviderError:
+                    self.wfile.write(b"data: [ERROR]\n\n")
+                self.wfile.write(b"data: [DONE]\n\n")
             except BudgetExceeded as err:
-                return self._json(402, {"error": str(err)})
+                return self._json(429, {"error": str(err)})
             except ProviderError as err:
-                return self._json(502, {"error": f"model failed: {err}"})
+                return self._json(502, {"error": f"the model failed: {err}"})
 
         def log_message(self, fmt, *args):
             pass  # the gateway writes its own structured logs

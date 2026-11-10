@@ -18,15 +18,24 @@ class Completion:
 
 
 class ProviderError(Exception):
-    """Raised for failures worth retrying (timeouts, 429, 5xx)."""
+    """A model call failed. retryable is True for timeouts, 429 and 5xx, and False for errors
+    that will not fix themselves, like a bad key (401) or a bad request (400)."""
+
+    def __init__(self, message, retryable=True):
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def last_user_text(messages):
+    return next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
 
 
 class Provider(Protocol):
     name: str
     model: str
 
-    def complete(self, prompt: str, timeout: float) -> Completion: ...
-    def stream(self, prompt: str, timeout: float) -> Iterator[str]: ...
+    def complete(self, messages: list, timeout: float) -> Completion: ...
+    def stream(self, messages: list, timeout: float) -> Iterator[str]: ...
 
 
 class FakeProvider:
@@ -48,7 +57,8 @@ class FakeProvider:
                 return value
         return f"echo: {prompt}"
 
-    def complete(self, prompt, timeout):
+    def complete(self, messages, timeout):
+        prompt = last_user_text(messages)
         self.calls += 1
         if self.calls <= self.fail_times:
             raise ProviderError("fake failure")
@@ -59,8 +69,8 @@ class FakeProvider:
         text = self._answer(prompt)
         return Completion(text, len(prompt.split()), len(text.split()))
 
-    def stream(self, prompt, timeout):
-        for word in self.complete(prompt, timeout).text.split(" "):
+    def stream(self, messages, timeout):
+        for word in self.complete(messages, timeout).text.split(" "):
             yield word + " "
 
 
@@ -73,31 +83,31 @@ class OpenAICompatibleProvider:
         self.model = model
         self._key = api_key
 
-    def _request(self, prompt, stream):
-        body = {"model": self.model, "messages": [{"role": "user", "content": prompt}], "stream": stream,
+    def _request(self, messages, stream):
+        body = {"model": self.model, "messages": messages, "stream": stream,
                 "reasoning_effort": "low"}
         return urllib.request.Request(
             f"{self.base_url}/chat/completions", data=json.dumps(body).encode(),
             headers={"Authorization": f"Bearer {self._key}", "Content-Type": "application/json",
                      "User-Agent": "model-gateway/1.0"})
 
-    def complete(self, prompt, timeout):
+    def complete(self, messages, timeout):
         try:
-            with urllib.request.urlopen(self._request(prompt, False), timeout=timeout) as r:
+            with urllib.request.urlopen(self._request(messages, False), timeout=timeout) as r:
                 data = json.load(r)
         except urllib.error.HTTPError as err:
-            if err.code == 429 or err.code >= 500:
-                raise ProviderError(f"HTTP {err.code}") from err
-            raise
+            raise ProviderError(f"HTTP {err.code}", retryable=err.code == 429 or err.code >= 500) from err
         except (urllib.error.URLError, TimeoutError) as err:
             raise ProviderError(str(err)) from err
         usage = data.get("usage", {})
         return Completion(data["choices"][0]["message"]["content"],
                           usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0))
 
-    def stream(self, prompt, timeout):
+    def stream(self, messages, timeout):
         try:
-            r = urllib.request.urlopen(self._request(prompt, True), timeout=timeout)
+            r = urllib.request.urlopen(self._request(messages, True), timeout=timeout)
+        except urllib.error.HTTPError as err:
+            raise ProviderError(f"HTTP {err.code}", retryable=err.code == 429 or err.code >= 500) from err
         except (urllib.error.URLError, TimeoutError) as err:
             raise ProviderError(str(err)) from err
         with r:
@@ -117,12 +127,12 @@ PROVIDERS = {
 
 
 def provider_from_config(env=os.environ) -> Provider:
-    """GATEWAY_PROVIDER=fake|groq|openrouter and GATEWAY_MODEL pick the model. Changing the
-    model is a configuration change only."""
-    kind = env.get("GATEWAY_PROVIDER", "fake")
-    model = env.get("GATEWAY_MODEL", "fake-1" if kind == "fake" else "openai/gpt-oss-20b")
+    """MODEL_PROVIDER=fake|groq|openrouter and MODEL_NAME pick the model. Changing the model is a
+    configuration change only."""
+    kind = env.get("MODEL_PROVIDER", "fake")
+    model = env.get("MODEL_NAME", "fake-1" if kind == "fake" else "openai/gpt-oss-20b")
     if kind == "fake":
-        return FakeProvider(model, answers=json.loads(env.get("GATEWAY_FAKE_ANSWERS", "{}")))
+        return FakeProvider(model, answers=json.loads(env.get("FAKE_ANSWERS", "{}")))
     if kind not in PROVIDERS:
         raise ValueError(f"unknown provider {kind!r}; use one of fake, {', '.join(PROVIDERS)}")
     base_url, key_var = PROVIDERS[kind]

@@ -1,0 +1,168 @@
+{
+ "accuracy": 0.969,
+ "cases": 32,
+ "cost_usd": 0.000434,
+ "seconds": 9.2,
+ "rows": [
+  {
+   "id": "q01",
+   "ok": true,
+   "answer": "Delhi"
+  },
+  {
+   "id": "q02",
+   "ok": true,
+   "answer": "144"
+  },
+  {
+   "id": "q03",
+   "ok": true,
+   "answer": "Mars"
+  },
+  {
+   "id": "q04",
+   "ok": false,
+   "answer": "Water is composed of two hydrogen atoms and one oxygen atom, so its chemical formula (and commonly used \u201csymbol\u201d) is **H\u2082O**."
+  },
+  {
+   "id": "q05",
+   "ok": true,
+   "answer": "Dhanyavaad."
+  },
+  {
+   "id": "q06",
+   "ok": true,
+   "answer": "366"
+  },
+  {
+   "id": "q07",
+   "ok": true,
+   "answer": "Tagore"
+  },
+  {
+   "id": "q08",
+   "ok": true,
+   "answer": "Pacific Ocean"
+  },
+  {
+   "id": "q09",
+   "ok": true,
+   "answer": "9"
+  },
+  {
+   "id": "q10",
+   "ok": true,
+   "answer": "Plants take in **carbon dioxide (CO\u2082)** for photosynthesis."
+  },
+  {
+   "id": "q11",
+   "ok": true,
+   "answer": "100"
+  },
+  {
+   "id": "q12",
+   "ok": true,
+   "answer": "The keyword is **`def`**. In Python, you define a function with:\n\n```python\ndef function_name(parameters):\n    # function body\n```\n"
+  },
+  {
+   "id": "q13",
+   "ok": true,
+   "answer": "HTML stands for **HyperText Markup Language**."
+  },
+  {
+   "id": "q14",
+   "ok": true,
+   "answer": "30"
+  },
+  {
+   "id": "q15",
+   "ok": true,
+   "answer": "Ganga"
+  },
+  {
+   "id": "q16",
+   "ok": true,
+   "answer": "Yen"
+  },
+  {
+   "id": "q17",
+   "ok": true,
+   "answer": "2"
+  },
+  {
+   "id": "q18",
+   "ok": true,
+   "answer": "Modern"
+  },
+  {
+   "id": "q19",
+   "ok": true,
+   "answer": "6"
+  },
+  {
+   "id": "q20",
+   "ok": true,
+   "answer": "32"
+  },
+  {
+   "id": "q21",
+   "ok": true,
+   "answer": "Jaipur"
+  },
+  {
+   "id": "q22",
+   "ok": true,
+   "answer": "The plural of **\u201cmouse\u201d** is **\u201cmice.\u201d**"
+  },
+  {
+   "id": "q23",
+   "ok": true,
+   "answer": "Heart"
+  },
+  {
+   "id": "q24",
+   "ok": true,
+   "answer": "23"
+  },
+  {
+   "id": "q25",
+   "ok": true,
+   "answer": "Telugu"
+  },
+  {
+   "id": "q26",
+   "ok": true,
+   "answer": "The SQL keyword you use to retrieve (read) rows from a table is **`SELECT`**.  \nExample:\n\n```sql\nSELECT column1, column2\nFROM your_table\nWHERE condition;\n```\n"
+  },
+  {
+   "id": "q27",
+   "ok": true,
+   "answer": "2000"
+  },
+  {
+   "id": "q28",
+   "ok": true,
+   "answer": "Armstrong"
+  },
+  {
+   "id": "q29",
+   "ok": true,
+   "answer": "Green"
+  },
+  {
+   "id": "q30",
+   "ok": true,
+   "answer": "Queue"
+  },
+  {
+   "id": "q31",
+   "ok": true,
+   "answer": "went"
+  },
+  {
+   "id": "q32",
+   "ok": true,
+   "answer": "push"
+  }
+ ]
+}

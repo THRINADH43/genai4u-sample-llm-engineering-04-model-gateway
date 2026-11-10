@@ -77,9 +77,11 @@ class ReliabilityTests(unittest.TestCase):
 
 class LoggingTests(unittest.TestCase):
     def test_redact(self):
-        text = "mail ravi.k@example.com or call +91 9876543210, aadhaar 1234 5678 9012"
+        text = ("mail ravi.k@example.com or asha@example.com, call +91 9876543210 or 98765 43210 "
+                "or 98765-43210, aadhaar 1234 5678 9012")
         out = redact(text)
-        for secret in ("ravi.k@example.com", "9876543210", "1234 5678 9012"):
+        for secret in ("ravi.k@example.com", "asha@example.com", "9876543210", "98765 43210", "98765-43210",
+                       "1234 5678 9012"):
             self.assertNotIn(secret, out)
 
     def test_logs_have_tokens_latency_cost_and_no_personal_data(self):

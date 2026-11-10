@@ -58,7 +58,7 @@ Standard library only, so `requirements.txt` is empty.
 ## Logs
 
 One JSON line per call: caller, provider, model, input/output tokens, cost, latency, ok/error
-and an 80-character preview of the last user message, with emails, Indian phone numbers and Aadhaar-style
+and an 80-character preview of the last user message, with emails, Indian phone numbers (also written `98765 43210`) and Aadhaar-style
 12-digit numbers replaced by `[email]`, `[phone]`, `[id-number]`. Masking happens before the
 cut, so a number at the 80-character edge cannot leak half-masked. Failed calls are logged too. Streams do not report
 token usage, so their token counts are word-count estimates.

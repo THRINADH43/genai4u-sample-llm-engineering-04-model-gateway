@@ -14,7 +14,7 @@ log = logging.getLogger("gateway")
 PRICES = {"openai/gpt-oss-20b": (0.075, 0.30), "openai/gpt-oss-120b": (0.15, 0.60)}
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
-PHONE = re.compile(r"(?<!\d)(?:\+91[\s-]?)?[6-9]\d{9}(?!\d)")
+PHONE = re.compile(r"(?<!\d)(?:\+91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?!\d)")  # 9876543210, 98765 43210
 AADHAAR = re.compile(r"(?<!\d)\d{4}\s?\d{4}\s?\d{4}(?!\d)")
 
 
